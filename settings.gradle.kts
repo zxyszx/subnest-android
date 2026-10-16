@@ -34,6 +34,7 @@ plugins {
 
 rootProject.name = "Nodyssey"
 include(":app")
+include(":subnest", ":subnest-data")
 
 // The R8 smoke: a `com.android.test` module that installs `:app`'s minified build on the CI
 // emulator, launches it, and checks it draws. Until it existed the optimized build was compiled on

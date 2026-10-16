@@ -4,11 +4,22 @@
 
 ## 当前状态
 
-**改造初始化阶段，尚未提供可用的 SubNest APK。** 当前保留上游代码作为开发基础；论坛界面、登录、通知和更新逻辑尚未替换，直接构建仍是上游论坛应用，不要用于登录 SubNest。
+**原生客户端预览阶段。** 安装包见 [Releases](https://github.com/zxyszx/subnest-android/releases)。当前预览包使用 debug 签名，仅供试用，尚非完整正式版。新增独立 `:subnest` 应用和 `:subnest-data` 数据模块，复用 Nodyssey 的 Compose 主题，不加载论坛页面、论坛后台任务、通知或上游更新器。上游 `:app` 仅保留作迁移参考，不是 SubNest 客户端。
 
 本仓库独立于 [SubNest 网页与服务端](https://github.com/zxyszx/subnest)，不修改现有服务器及用户数据。上游 GitHub Actions 暂时停用，防止误发布论坛 APK 或沿用上游部署任务。
 
-## 首个测试版范围
+## 已接入的开发功能
+
+- HTTPS 服务器登录、双因素验证码与恢复码验证；密码不持久化。
+- Android Keystore 加密会话，凭据按服务器隔离，退出清除。
+- 原生订阅列表：编号/账号搜索、完整平台下拉选择、今日/7 天内/逾期筛选。
+- 原生共享账号列表：空位/已满筛选、查看车位和成员到期日。
+- 订阅续费前确认，按服务器的原周期规则推进，不执行自动扣款。
+- 纵向滚动、三个底部导航入口、主题随系统、切换页面保留筛选。
+
+尚未接入：订阅新增/编辑、车友收款续费、仪表盘、Passkey、Turnstile 人机验证。开启人机验证的服务器目前可能无法从客户端登录，不会绕过验证。车位目前只读，不能代替网页版管理。
+
+## 后续范围
 
 - 设置自己的 SubNest 服务器地址并登录。
 - 原生订阅列表、会员共享与车位管理。
@@ -25,10 +36,15 @@
 上游要求 JDK 21 和 Android SDK 37。使用仓库内 Gradle wrapper：
 
 ```sh
-./gradlew :app:assembleDebug
+./gradlew :subnest:assembleDebug
+./gradlew :subnest-data:testDebugUnitTest :subnest:lintDebug spotlessCheck
 ```
 
-此命令目前构建的仍是上游应用，不表示 SubNest 业务已经接入。架构和质量要求见 [AGENTS.md](AGENTS.md)。服务器凭据、登录令牌、签名密钥与本地 SDK 路径不得提交。
+开发 APK：`subnest/build/outputs/apk/debug/subnest-debug.apk`，包名 `io.github.zxyszx.subnest.debug`，与原 Nodyssey 独立安装。生产构建只允许 HTTPS；debug 额外允许模拟器回环服务器。
+
+设备集成测试使用独立空库，在本机 `43210` 端口启动 SubNest 后端后运行 `node tools/seed-local-subnest.mjs`，然后 `./gradlew :subnest:connectedDebugAndroidTest`。此测试会续费其本地测试订阅，不得连接生产库；重新完整测试须使用新的测试数据库。
+
+架构和质量要求见 [AGENTS.md](AGENTS.md)。真实服务器凭据、登录令牌、签名密钥与本地 SDK 路径不得提交。
 
 ## 来源与许可
 

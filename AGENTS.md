@@ -2,6 +2,14 @@
 
 ## Project Structure & Module Organization
 
+SubNest adaptation: `:subnest` is the independent Android client and
+`:subnest-data` owns its product API, encrypted cookie sessions and list/renewal
+rules. It depends on `:designsys`, never the forum UI or its workers. Build with
+`:subnest:assembleDebug`; test with `:subnest-data:testDebugUnitTest`,
+`:subnest:lintDebug`, and `:subnest:connectedDebugAndroidTest` against the isolated
+local fixture described in README. The original modules below remain upstream
+reference code. Never run mutation tests against a user's deployed server.
+
 Two application shells over four libraries, plus two modules that exist only to exercise the others:
 
 | Module | What it is | Kotlin targets |

@@ -1,0 +1,148 @@
+package io.github.zxyszx.subnest.data
+
+import kotlinx.serialization.Serializable
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+
+@Serializable
+data class User(val id: String, val name: String, val email: String)
+
+@Serializable
+data class LoginResult(
+    val type: String,
+    val user: User? = null,
+    val ticketId: String? = null,
+    val methods: List<String> = emptyList(),
+)
+
+@Serializable
+data class Subscription(
+    val id: String,
+    val name: String,
+    val price: String,
+    val currency: String,
+    val billingCycle: String,
+    val nextBillingDate: String,
+    val status: String,
+    val autoRenew: Boolean,
+    val autoCalculateNextBillingDate: Boolean,
+    val startDate: String? = null,
+    val platformName: String = "",
+    val accountNumber: Int? = null,
+    val familySharingLoginAccount: String = "",
+    val customDays: Int? = null,
+    val customCycleUnit: String? = null,
+) {
+    val platform: String get() = platformName.ifBlank { name }
+    val canRenew: Boolean get() = status in setOf("active", "trial", "expired") && billingCycle != "one-time" && !autoRenew
+
+    fun suggestedNextDate(today: LocalDate = LocalDate.now()): LocalDate {
+        val original = LocalDate.parse(nextBillingDate)
+        val anchor = if (autoCalculateNextBillingDate) LocalDate.parse(requireNotNull(startDate)) else original
+        val threshold = maxOf(today, original)
+        // Always advance from the original anchor, so Jan 31 -> Feb 28 -> Mar 31 does not drift.
+        for (count in 1L..10000L) {
+            val candidate = when (billingCycle) {
+                "weekly" -> anchor.plusWeeks(count)
+
+                "monthly" -> anchor.plusMonths(count)
+
+                "quarterly" -> anchor.plusMonths(3 * count)
+
+                "semi-annual" -> anchor.plusMonths(6 * count)
+
+                "annual" -> anchor.plusYears(count)
+
+                "custom" -> {
+                    val step = requireNotNull(customDays).toLong()
+                    require(step > 0)
+                    when (customCycleUnit) {
+                        "month" -> anchor.plusMonths(step * count)
+                        "year" -> anchor.plusYears(step * count)
+                        "week" -> anchor.plusWeeks(step * count)
+                        "day" -> anchor.plusDays(step * count)
+                        else -> error("Unsupported custom cycle")
+                    }
+                }
+
+                else -> error("Unsupported billing cycle")
+            }
+            if (candidate > threshold) return candidate
+        }
+        error("Renewal advance limit exceeded")
+    }
+}
+
+@Serializable
+data class Subscriptions(val subscriptions: List<Subscription>, val total: Int)
+
+@Serializable
+data class SharingSubscription(val id: String, val name: String, val platformName: String)
+
+@Serializable
+data class SharedAccount(
+    val id: String,
+    val subscription: SharingSubscription,
+    val name: String,
+    val accountNumber: Int,
+    val loginAccount: String,
+    val capacity: Int,
+    val occupiedSeats: Int,
+    val nextBillingDate: String,
+    val status: String,
+) {
+    val available: Int get() = (capacity - occupiedSeats).coerceAtLeast(0)
+}
+
+@Serializable
+data class Accounts(val accounts: List<SharedAccount>, val total: Int)
+
+@Serializable
+data class Seat(
+    val id: String,
+    val seatNumber: Int,
+    val status: String,
+    val memberName: String? = null,
+    val expiresAt: String? = null,
+    val currency: String? = null,
+    val monthlyPrice: String? = null,
+)
+
+@Serializable
+data class AccountDetail(val account: SharedAccount, val seats: List<Seat>)
+
+enum class ListFilter { ALL, TODAY, UPCOMING, OVERDUE, VACANT, FULL }
+
+fun matchesDate(date: String, filter: ListFilter, today: LocalDate): Boolean {
+    val days = ChronoUnit.DAYS.between(today, LocalDate.parse(date))
+    return when (filter) {
+        ListFilter.TODAY -> days == 0L
+        ListFilter.UPCOMING -> days in 0..7
+        ListFilter.OVERDUE -> days < 0
+        else -> true
+    }
+}
+
+fun subscriptionsMatching(rows: List<Subscription>, query: String, platform: String?, filter: ListFilter, today: LocalDate): List<Subscription> =
+    rows.filter {
+        (platform == null || it.platform == platform) &&
+            (
+                query.isBlank() || listOf(it.name, it.platform, it.accountNumber?.toString().orEmpty(), it.familySharingLoginAccount)
+                    .any { value -> value.contains(query.trim(), ignoreCase = true) }
+                ) &&
+            (filter == ListFilter.ALL || (it.status in setOf("active", "trial", "expired") && matchesDate(it.nextBillingDate, filter, today)))
+    }.sortedBy { it.nextBillingDate }
+
+fun accountsMatching(rows: List<SharedAccount>, query: String, platform: String?, filter: ListFilter, today: LocalDate): List<SharedAccount> =
+    rows.filter {
+        (platform == null || it.subscription.platformName == platform) &&
+            (
+                query.isBlank() || listOf(it.name, it.loginAccount, it.accountNumber.toString(), it.subscription.platformName)
+                    .any { value -> value.contains(query.trim(), ignoreCase = true) }
+                ) &&
+            when (filter) {
+                ListFilter.VACANT -> it.status == "active" && it.available > 0
+                ListFilter.FULL -> it.status == "active" && it.capacity > 0 && it.occupiedSeats >= it.capacity
+                else -> filter == ListFilter.ALL || (it.status == "active" && matchesDate(it.nextBillingDate, filter, today))
+            }
+    }.sortedBy { it.accountNumber }

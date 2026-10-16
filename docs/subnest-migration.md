@@ -5,7 +5,8 @@
 - Upstream: https://github.com/5151561/nodyssey
 - Source revision: 7eccd05bc45093dbf2fe31671ebd32979a0c6aee
 - License: GPL-3.0; preserve notices and publish corresponding source with APK releases.
-- Status: source imported; no SubNest business integration or APK verification yet.
+- Status: independent native Android development module with product API integration;
+  no signed production release yet. See README for current workflow limitations.
 
 ## Boundaries
 
@@ -36,6 +37,14 @@ a reachable SubNest server; this is not an offline replacement for the backend.
    paths, and build a separately signed self-use APK with matching source tag.
 
 ## Release Safety
+
+The derivative lives in `:subnest` (Android Compose UI) and `:subnest-data`
+(typed product API, session isolation, filtering and date rules). The original
+`:app` remains a forum reference and must never be distributed as SubNest.
+Only `:designsys` is reused for rendering. No forum workers or updater are started.
+The client uses the product cookie-session API and CSRF contract, not PocketBase
+admin tokens. Cookies are encrypted with an Android Keystore key in no-backup
+storage and bound to the exact scheme, host and port. Passwords are never saved.
 
 GitHub Actions are disabled for this initial import. Review inherited workflows
 before re-enabling CI. Replace upstream repository references, release targets,
