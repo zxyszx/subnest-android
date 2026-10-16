@@ -1,71 +1,37 @@
-<div align="center">
+# SubNest Android
 
-# Nodyssey
+基于 [Nodyssey](https://github.com/5151561/nodyssey) 改造的 SubNest 原生安卓客户端，采用 Kotlin 与 Compose，不是网页套壳。
 
-[NodeSeek](https://www.nodeseek.com/) 的非官方开源 Android 客户端，Kotlin + Jetpack Compose，帖子渲染为原生 Compose 内容。
+## 当前状态
 
-[![Release](https://img.shields.io/github/v/release/5151561/nodyssey?include_prereleases&sort=semver&label=Release&color=2C6E7F)](https://github.com/5151561/nodyssey/releases)
-[![Downloads](https://img.shields.io/github/downloads/5151561/nodyssey/total?label=Downloads&color=2C6E7F)](https://github.com/5151561/nodyssey/releases)
-[![Stars](https://img.shields.io/github/stars/5151561/nodyssey?style=flat&logo=github&label=Stars)](https://github.com/5151561/nodyssey/stargazers)
-[![CI](https://img.shields.io/github/actions/workflow/status/5151561/nodyssey/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white)](https://github.com/5151561/nodyssey/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/5151561/nodyssey?label=License)](LICENSE)
+**改造初始化阶段，尚未提供可用的 SubNest APK。** 当前保留上游代码作为开发基础；论坛界面、登录、通知和更新逻辑尚未替换，直接构建仍是上游论坛应用，不要用于登录 SubNest。
 
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/5151561/nodyssey/releases)
-[![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Jetpack_Compose-M3_Expressive-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
+本仓库独立于 [SubNest 网页与服务端](https://github.com/zxyszx/subnest)，不修改现有服务器及用户数据。上游 GitHub Actions 暂时停用，防止误发布论坛 APK 或沿用上游部署任务。
 
-[![Website](https://img.shields.io/badge/宣传页-nodyssey-2C6E7F?logo=githubpages&logoColor=white)](https://5151561.github.io/nodyssey/)
-[![Telegram Channel](https://img.shields.io/badge/Telegram-Channel-26A5E4?logo=telegram&logoColor=white)](https://t.me/nodyssey_official)
-[![Telegram Group](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/+97ANIwVaCYk1MjQ1)
+## 首个测试版范围
 
-<img src="docs/screenshots/post-list-light.png" width="200" alt="帖子列表" />
-<img src="docs/screenshots/post-detail-dark.png" width="200" alt="帖子详情" />
-<img src="docs/screenshots/notifications-light.png" width="200" alt="消息通知" />
-<img src="docs/screenshots/profile-light.png" width="200" alt="我的" />
+- 设置自己的 SubNest 服务器地址并登录。
+- 原生订阅列表、会员共享与车位管理。
+- 编号搜索，平台选择，空位、到期与逾期快捷筛选。
+- 保留纵向滚动，不强制分页。
+- 收到车友转账后手动确认续费，不实现自动扣款。
+- 不集成消息推送；不影响以后手动下载安装新版 APK。
+- 简化首页，仅展示有用的收入、支出、车位与待处理事项。
 
-</div>
+具体边界与迁移顺序见 [迁移计划](docs/subnest-migration.md)。
 
-## 下载
+## 开发
 
-到 [Releases](https://github.com/5151561/nodyssey/releases) 下载最新 APK，应用内也可以检查更新。各版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+上游要求 JDK 21 和 Android SDK 37。使用仓库内 Gradle wrapper：
 
-> **关于 iOS**：项目只维护 Android。iOS 版本已停止维护，不再加功能、不再修 iOS 专属的问题，也不接受 iOS 方向的 PR。
-
-## 功能
-
-- **浏览与互动**：发帖、评论、编辑；点赞 / 反对 / 投喂鸡腿、收藏、签到；投票帖阅读与投票
-- **消息与社交**：通知与未读数、私信、关注 / 粉丝、用户空间
-- **账号**：鸡腿与星辰流水、星辰转账与收款码、等级进度、账号设置
-- **阅读体验**：离线缓存、已读标记、浏览历史与阅读位置、图片预览 / 保存 / 分享、六种图床上传
-- **界面**：Material 3 Expressive，宽屏自动换侧边栏；简体 / 繁體 / English 三语
-
-## 构建
-
-需要 JDK 21 和 Android SDK 37。
-
-```bash
+```sh
 ./gradlew :app:assembleDebug
 ```
 
-模块划分和架构约定见 [docs/architecture.md](docs/architecture.md) 与 [docs/README.md](docs/README.md)。
+此命令目前构建的仍是上游应用，不表示 SubNest 业务已经接入。架构和质量要求见 [AGENTS.md](AGENTS.md)。服务器凭据、登录令牌、签名密钥与本地 SDK 路径不得提交。
 
-## 参与
+## 来源与许可
 
-- 反馈问题：[Issues](https://github.com/5151561/nodyssey/issues/new/choose)，请带上 App 版本、机型和 Android 版本
-- 用法提问：[Telegram 群组](https://t.me/+97ANIwVaCYk1MjQ1)
-- 提 PR 前请先读 [CONTRIBUTING.md](CONTRIBUTING.md)
+基于 Nodyssey，原作者及贡献者的版权声明、GPL-3.0 许可证与 Git 历史保留。基线提交：`7eccd05bc45093dbf2fe31671ebd32979a0c6aee`。
 
-## 致谢
-
-- [tyrad/nodeseek](https://github.com/tyrad/nodeseek)（iOS 客户端，MIT）—— 站点结构的逆向参考
-- [mrzhiin/seekmate](https://github.com/mrzhiin/seekmate)（React Native 客户端，MIT）—— 部分 JSON 端点的发现来源
-
-本项目独立实现，不共享代码。
-
-## 说明
-
-本项目与 NodeSeek 官方无关，是社区自制客户端。请求频率保持克制，不做自动化刷分；仓库中不保存任何 Cookie 或凭据。
-
-## 许可
-
-[GPL-3.0](LICENSE)
+本衍生项目按 [GPL-3.0](LICENSE) 开源。分发 APK 时同时提供对应版本源码及必要的构建说明。原项目介绍见 [上游 README](README.upstream.md)；其中的论坛下载、反馈与更新链接属于上游项目，不是 SubNest 的发布入口。本项目不代表 Nodyssey 或 NodeSeek 官方。
