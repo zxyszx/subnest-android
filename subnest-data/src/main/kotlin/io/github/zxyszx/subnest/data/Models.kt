@@ -33,7 +33,7 @@ data class Subscription(
     val customDays: Int? = null,
     val customCycleUnit: String? = null,
 ) {
-    val platform: String get() = platformName.ifBlank { name }
+    val platform: String get() = platformName.takeUnless { it.isBlank() || it == "__unbound__" } ?: name
     val canRenew: Boolean get() = status in setOf("active", "trial", "expired") && billingCycle != "one-time" && !autoRenew
 
     fun suggestedNextDate(today: LocalDate = LocalDate.now()): LocalDate {
@@ -127,18 +127,26 @@ fun subscriptionsMatching(rows: List<Subscription>, query: String, platform: Str
     rows.filter {
         (platform == null || it.platform == platform) &&
             (
-                query.isBlank() || listOf(it.name, it.platform, it.accountNumber?.toString().orEmpty(), it.familySharingLoginAccount)
-                    .any { value -> value.contains(query.trim(), ignoreCase = true) }
+                if (query.trim().matches(Regex("[0-9]+"))) {
+                    it.accountNumber?.toString() == query.trim()
+                } else {
+                    query.isBlank() || listOf(it.name, it.platform, it.accountNumber?.toString().orEmpty(), it.familySharingLoginAccount)
+                        .any { value -> value.contains(query.trim(), ignoreCase = true) }
+                }
                 ) &&
             (filter == ListFilter.ALL || (it.status in setOf("active", "trial", "expired") && matchesDate(it.nextBillingDate, filter, today)))
-    }.sortedBy { it.nextBillingDate }
+    }.sortedWith(compareBy<Subscription> { it.status !in setOf("active", "trial", "expired") }.thenBy { it.nextBillingDate })
 
 fun accountsMatching(rows: List<SharedAccount>, query: String, platform: String?, filter: ListFilter, today: LocalDate): List<SharedAccount> =
     rows.filter {
         (platform == null || it.subscription.platformName == platform) &&
             (
-                query.isBlank() || listOf(it.name, it.loginAccount, it.accountNumber.toString(), it.subscription.platformName)
-                    .any { value -> value.contains(query.trim(), ignoreCase = true) }
+                if (query.trim().matches(Regex("[0-9]+"))) {
+                    it.accountNumber.toString() == query.trim()
+                } else {
+                    query.isBlank() || listOf(it.name, it.loginAccount, it.accountNumber.toString(), it.subscription.platformName)
+                        .any { value -> value.contains(query.trim(), ignoreCase = true) }
+                }
                 ) &&
             when (filter) {
                 ListFilter.VACANT -> it.status == "active" && it.available > 0

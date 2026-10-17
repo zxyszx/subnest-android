@@ -1,11 +1,15 @@
 package io.github.zxyszx.subnest
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
@@ -40,53 +44,56 @@ fun ListControls(
     filter: ListFilter,
     onFilter: (ListFilter) -> Unit,
 ) {
-    OutlinedTextField(
-        query,
-        onQuery,
-        Modifier.fillMaxWidth(),
-        singleLine = true,
-        label = { Text(stringResource(R.string.search)) },
-        leadingIcon = { Icon(Icons.Default.Search, null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQuery("") }) {
-                    Icon(Icons.Default.Close, stringResource(R.string.clear_search))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            query,
+            onQuery,
+            Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(24.dp),
+            label = { Text(stringResource(R.string.search)) },
+            leadingIcon = { Icon(Icons.Default.Search, null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQuery("") }) {
+                        Icon(Icons.Default.Close, stringResource(R.string.clear_search))
+                    }
+                }
+            },
+        )
+        var expanded by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { expanded = true }) {
+                Text(platform ?: stringResource(R.string.all_platforms))
+                Icon(Icons.Default.ArrowDropDown, null)
+            }
+            DropdownMenu(expanded, { expanded = false }, Modifier.heightIn(max = 360.dp)) {
+                (listOf<String?>(null) + platforms).forEach { value ->
+                    DropdownMenuItem(
+                        text = { Text(value ?: stringResource(R.string.all_platforms)) },
+                        onClick = {
+                            onPlatform(value)
+                            expanded = false
+                        },
+                        trailingIcon = { if (platform == value) Icon(Icons.Default.Check, null) },
+                    )
                 }
             }
-        },
-    )
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        TextButton(onClick = { expanded = true }) {
-            Text(platform ?: stringResource(R.string.all_platforms))
-            Icon(Icons.Default.ArrowDropDown, null)
         }
-        DropdownMenu(expanded, { expanded = false }, Modifier.heightIn(max = 360.dp)) {
-            (listOf<String?>(null) + platforms).forEach { value ->
-                DropdownMenuItem(
-                    text = { Text(value ?: stringResource(R.string.all_platforms)) },
-                    onClick = {
-                        onPlatform(value)
-                        expanded = false
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            filters.forEach { value ->
+                FilterChip(
+                    selected = filter == value,
+                    onClick = { onFilter(value) },
+                    label = { Text(stringResource(value.label())) },
+                    leadingIcon = if (filter == value) {
+                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                    } else {
+                        null
                     },
-                    trailingIcon = { if (platform == value) Icon(Icons.Default.Check, null) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
-        }
-    }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        filters.forEach { value ->
-            FilterChip(
-                selected = filter == value,
-                onClick = { onFilter(value) },
-                label = { Text(stringResource(value.label())) },
-                leadingIcon = if (filter == value) {
-                    { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                } else {
-                    null
-                },
-                modifier = Modifier.heightIn(min = 48.dp),
-            )
         }
     }
 }

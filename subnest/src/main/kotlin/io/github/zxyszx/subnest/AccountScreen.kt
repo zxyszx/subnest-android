@@ -33,7 +33,7 @@ fun AccountScreen(state: WorkspaceState, onLogout: () -> Unit) {
         Text(state.user?.email.orEmpty())
         Text(state.origin, color = MaterialTheme.colorScheme.onSurfaceVariant)
         HorizontalDivider()
-        Text(stringResource(R.string.version))
+        Text(stringResource(R.string.version, BuildConfig.VERSION_NAME))
         Text(stringResource(R.string.license), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.license_note))
         TextButton(onClick = { uri.openUri("https://github.com/zxyszx/subnest-android") }) { Text(stringResource(R.string.source)) }

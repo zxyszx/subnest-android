@@ -35,6 +35,23 @@ class WorkspaceRulesTest {
     }
 
     @Test
+    fun `unbound platforms use service name and inactive records follow actionable subscriptions`() {
+        val active = subscription("1", "2026-10-18").copy(name = "Server", platformName = "__unbound__")
+        val cancelled = subscription("2", "2026-01-01", "cancelled")
+        assertEquals("Server", active.platform)
+        assertEquals(listOf("1", "2"), subscriptionsMatching(listOf(cancelled, active), "", null, ListFilter.ALL, today).map { it.id })
+    }
+
+    @Test
+    fun `numeric lookup matches account number exactly instead of email digits or prefixes`() {
+        val rows = listOf(subscription("1", "2026-10-17"), subscription("10", "2026-10-17"), subscription("21", "2026-10-17").copy(familySharingLoginAccount = "member1@example.test"))
+        assertEquals(listOf("1"), subscriptionsMatching(rows, " 1 ", null, ListFilter.ALL, today).map { it.id })
+        val base = SharedAccount("1", SharingSubscription("s", "Netflix", "Netflix"), "Netflix", 1, "member@example.test", 5, 4, "2026-10-17", "active")
+        val accounts = listOf(base, base.copy(id = "10", accountNumber = 10), base.copy(id = "21", accountNumber = 21, loginAccount = "member1@example.test"))
+        assertEquals(listOf("1"), accountsMatching(accounts, " 1 ", null, ListFilter.ALL, today).map { it.id })
+    }
+
+    @Test
     fun `renewal catches up overdue cycles without losing month end anchor`() {
         val row = subscription("1", "2026-02-28").copy(startDate = "2026-01-31", autoCalculateNextBillingDate = true)
         assertEquals(LocalDate.of(2026, 3, 31), row.suggestedNextDate(LocalDate.of(2026, 3, 1)))

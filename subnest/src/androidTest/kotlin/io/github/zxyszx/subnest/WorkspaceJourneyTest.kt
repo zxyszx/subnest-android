@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
@@ -97,7 +98,7 @@ class WorkspaceJourneyTest {
         awaitText(context.getString(R.string.count, 1))
         compose.onNode(hasText("Netflix #2")).assertExists()
         action(R.string.sharing).performClick()
-        action(R.string.vacant).performClick()
+        compose.onNode(hasText(context.getString(R.string.vacant)) and isSelectable()).performClick()
         awaitText(context.getString(R.string.count, 2))
         compose.onAllNodes(hasText(context.getString(R.string.manage)) and hasClickAction())[0].performScrollTo().performClick()
         awaitText(context.getString(R.string.seat_number, 1))

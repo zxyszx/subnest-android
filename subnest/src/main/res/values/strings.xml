@@ -51,7 +51,7 @@
     <string name="logout_confirm">退出当前账号？</string>
     <string name="logout_note">此设备上的登录凭据会被清除。</string>
     <string name="sign_out">退出</string>
-    <string name="version">开发版 0.1.0</string>
+    <string name="version">预览版 %1$s</string>
     <string name="license">开源许可</string>
     <string name="license_note">GPL-3.0 · 基于 Nodyssey / 5151561 及其贡献者</string>
     <string name="source">源代码</string>
