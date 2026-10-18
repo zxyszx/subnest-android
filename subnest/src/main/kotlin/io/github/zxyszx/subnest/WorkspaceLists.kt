@@ -83,7 +83,8 @@ fun SubscriptionScreen(rows: List<Subscription>, busy: Boolean, onRenew: (Subscr
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         PlatformAvatar(row.platform)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("${row.platform}${row.accountNumber?.let { " #$it" }.orEmpty()}", style = MaterialTheme.typography.titleMedium)
+                            Text("${row.name.trim().ifBlank { row.platform }}${row.accountNumber?.let { " #$it" }.orEmpty()}", style = MaterialTheme.typography.titleMedium)
+                            if (row.platform != row.name.trim()) Text(row.platform, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (row.familySharingLoginAccount.isNotBlank()) Text(row.familySharingLoginAccount, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         StatusPill(stringResource(statusLabel(row.status)))
