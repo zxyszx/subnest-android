@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -61,6 +62,9 @@ class WorkspaceJourneyTest {
         field(R.string.email).performTextInput("android-local@example.com")
         field(R.string.password).performTextInput("Local-test-only-2749")
         action(R.string.login).performClick()
+        awaitText(context.getString(R.string.dashboard_title))
+        screenshot("00-dashboard")
+        action(R.string.subscriptions).performClick()
         awaitText(context.getString(R.string.count, 4))
         screenshot("01-subscriptions")
         action(R.string.all_platforms).performClick()
@@ -103,6 +107,22 @@ class WorkspaceJourneyTest {
         compose.onAllNodes(hasText(context.getString(R.string.manage)) and hasClickAction())[0].performScrollTo().performClick()
         awaitText(context.getString(R.string.seat_number, 1))
         screenshot("04-seats")
+        compose.onAllNodes(hasText(context.getString(R.string.edit_seat)) and hasClickAction())[0].performScrollTo().performClick()
+        field(R.string.member_name).performTextReplacement("Native QA Member")
+        field(R.string.billing_amount).performScrollTo().performTextReplacement("15")
+        field(R.string.currency).performTextReplacement("CNY")
+        action(R.string.paid).performScrollTo().performClick()
+        action(R.string.save).performClick()
+        awaitText("Native QA Member")
+        screenshot("05-paid-member")
+        // Close and reload from the backend: optimistic state alone must not pass.
+        action(R.string.close).performClick()
+        compose.onAllNodes(hasText(context.getString(R.string.manage)) and hasClickAction())[0].performScrollTo().performClick()
+        awaitText("Native QA Member")
+        compose.onAllNodes(hasText(context.getString(R.string.edit_seat)) and hasClickAction())[0].performScrollTo().performClick()
+        field(R.string.billing_amount).performScrollTo().assertTextContains("15")
+        action(R.string.paid).performScrollTo().assertIsSelected()
+        action(R.string.cancel).performClick()
         action(R.string.close).performClick()
         action(R.string.account).performClick()
         action(R.string.logout).performScrollTo().performClick()

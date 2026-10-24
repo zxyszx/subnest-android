@@ -3,8 +3,10 @@ package io.github.zxyszx.subnest.data
 import android.content.Context
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -41,6 +43,11 @@ interface SubNestRepository {
     suspend fun subscriptions(): List<Subscription>
     suspend fun accounts(): List<SharedAccount>
     suspend fun detail(id: String): AccountDetail
+    suspend fun updateSeat(id: String, changes: SeatUpdate): AccountDetail
+    suspend fun credentials(id: String): AccountCredentials
+    suspend fun links(detail: AccountDetail): List<SeatLink>
+    suspend fun generateLink(detail: AccountDetail, seatId: String)
+    suspend fun revokeLink(account: SharedAccount, linkId: String)
     suspend fun renew(subscription: Subscription, nextDate: String)
     suspend fun logout()
     fun clearSession()
@@ -60,15 +67,15 @@ class HttpSubNestRepository(private val origin: HttpUrl, private val cookies: Se
         .callTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private suspend fun request(vararg segments: String, body: JsonObject? = null): JsonElement {
+    private suspend fun request(vararg segments: String, body: JsonObject? = null, method: String = if (body == null) "GET" else "POST"): JsonElement {
         val url = origin.newBuilder().addPathSegments("api/app").apply { segments.forEach { addPathSegment(it) } }.build()
         val request = Request.Builder().url(url)
             .header("Accept", "application/json")
             .header("Accept-Language", "zh-CN")
-        if (body != null) {
+        if (method != "GET") {
             request.header("Origin", origin.toString().trimEnd('/'))
             cookies.csrf()?.let { request.header("X-Renewlet-CSRF", it) }
-            request.post(body.toString().toRequestBody("application/json".toMediaType()))
+            request.method(method, body?.toString()?.toRequestBody("application/json".toMediaType()))
         }
         val response = suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request.build())
@@ -132,6 +139,63 @@ class HttpSubNestRepository(private val origin: HttpUrl, private val cookies: Se
 
     override suspend fun detail(id: String): AccountDetail =
         json.decodeFromJsonElement(AccountDetail.serializer(), request("sharing", "accounts", id))
+
+    override suspend fun updateSeat(id: String, changes: SeatUpdate): AccountDetail {
+        changes.validate()
+        return json.decodeFromJsonElement(AccountDetail.serializer(), request("sharing", "seats", id, body = json.encodeToJsonElement(SeatUpdate.serializer(), changes).jsonObject, method = "PUT"))
+    }
+
+    override suspend fun credentials(id: String): AccountCredentials =
+        json.decodeFromJsonElement(AccountCredentials.serializer(), request("sharing", "accounts", id, "credentials"))
+
+    private suspend fun inboxLinks(): List<InboxLink> = json.decodeFromJsonElement(InboxLinks.serializer(), request("admin", "shared-inbox-links")).links
+
+    override suspend fun links(detail: AccountDetail): List<SeatLink> {
+        val account = detail.account
+        if (account.verificationMode == "none" || account.status != "active") return emptyList()
+        if (account.verificationMode == "totp") {
+            return json.decodeFromJsonElement(TotpLinks.serializer(), request("sharing", "accounts", account.id, "totp-links")).links.map { link ->
+                val url = if (link.path.matches(Regex("/otp/[A-Za-z0-9_-]{32,128}"))) origin.resolve(link.path)?.toString().orEmpty() else ""
+                SeatLink(link.id, link.seatId, url, link.valid && url.isNotBlank())
+            }
+        }
+        if (account.verificationLink.isNullOrBlank()) return emptyList()
+        val seatIds = detail.seats.map { it.id }.toSet()
+        return inboxLinks().filter { it.seatId in seatIds || (it.seatId.isNullOrBlank() && it.shortUrl == account.verificationLink) }.map {
+            SeatLink(it.id, it.seatId.orEmpty(), it.shortUrl, it.status == "active" && (it.expiresAt == null || java.time.Instant.parse(it.expiresAt) > java.time.Instant.now()))
+        }
+    }
+
+    override suspend fun generateLink(detail: AccountDetail, seatId: String) {
+        val account = detail.account
+        if (account.verificationMode == "none") throw SharingConfigurationException()
+        val seat = detail.seats.single { it.id == seatId }
+        require(account.status == "active" && !seat.memberName.isNullOrBlank() && seat.status in setOf("active", "paused") && (seat.expiresAt == null || seat.expiresAt >= java.time.LocalDate.now().toString()))
+        if (account.verificationMode == "totp") {
+            request("sharing", "accounts", account.id, "totp-links", body = buildJsonObject { put("seatId", seatId) })
+        } else {
+            // Reuse the configured public scope; never widen folder or time-window access.
+            val scope = inboxLinks().firstOrNull { it.seatId.isNullOrBlank() && it.shortUrl == account.verificationLink && it.folderIds.isNotEmpty() && it.status == "active" && (it.expiresAt == null || java.time.Instant.parse(it.expiresAt) > java.time.Instant.now()) } ?: throw SharingConfigurationException()
+            request(
+                "admin",
+                "shared-inbox-links",
+                body = buildJsonObject {
+                    put("mailboxId", scope.mailboxId)
+                    put("seatId", seatId)
+                    put("folderIds", JsonArray(scope.folderIds.map(::JsonPrimitive)))
+                    put("windowMinutes", scope.windowMinutes)
+                },
+            )
+        }
+    }
+
+    override suspend fun revokeLink(account: SharedAccount, linkId: String) {
+        if (account.verificationMode == "totp") {
+            request("sharing", "accounts", account.id, "totp-links", linkId, method = "DELETE")
+        } else {
+            request("admin", "shared-inbox-links", linkId, method = "DELETE")
+        }
+    }
 
     override suspend fun renew(subscription: Subscription, nextDate: String) {
         require(subscription.canRenew)

@@ -41,10 +41,10 @@ import io.github.zxyszx.subnest.data.subscriptionsMatching
 import java.time.LocalDate
 
 @Composable
-fun SubscriptionScreen(rows: List<Subscription>, busy: Boolean, onRenew: (Subscription, String) -> Unit) {
+fun SubscriptionScreen(rows: List<Subscription>, busy: Boolean, onRenew: (Subscription, String) -> Unit, initialFilter: ListFilter = ListFilter.ALL) {
     var query by rememberSaveable { mutableStateOf("") }
     var platform by rememberSaveable { mutableStateOf<String?>(null) }
-    var filter by rememberSaveable { mutableStateOf(ListFilter.ALL) }
+    var filter by rememberSaveable { mutableStateOf(initialFilter) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val visible = subscriptionsMatching(rows, query, platform, filter, LocalDate.now())
     LazyColumn(
@@ -114,10 +114,10 @@ fun SubscriptionScreen(rows: List<Subscription>, busy: Boolean, onRenew: (Subscr
 }
 
 @Composable
-fun SharingScreen(rows: List<SharedAccount>, busy: Boolean, onAccount: (String) -> Unit) {
+fun SharingScreen(rows: List<SharedAccount>, busy: Boolean, onAccount: (String) -> Unit, initialFilter: ListFilter = ListFilter.ALL) {
     var query by rememberSaveable { mutableStateOf("") }
     var platform by rememberSaveable { mutableStateOf<String?>(null) }
-    var filter by rememberSaveable { mutableStateOf(ListFilter.ALL) }
+    var filter by rememberSaveable { mutableStateOf(initialFilter) }
     val visible = accountsMatching(rows, query, platform, filter, LocalDate.now())
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -160,7 +160,8 @@ fun SharingScreen(rows: List<SharedAccount>, busy: Boolean, onAccount: (String) 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         PlatformAvatar(row.subscription.platformName)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("${row.subscription.platformName} #${row.accountNumber}", style = MaterialTheme.typography.titleMedium)
+                            Text("${row.subscription.name.trim().ifBlank { row.subscription.platformName }} #${row.accountNumber}", style = MaterialTheme.typography.titleMedium)
+                            if (row.subscription.name.trim() != row.subscription.platformName) Text(row.subscription.platformName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(row.loginAccount, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         StatusPill(stringResource(if (row.available > 0) R.string.vacant else R.string.full))

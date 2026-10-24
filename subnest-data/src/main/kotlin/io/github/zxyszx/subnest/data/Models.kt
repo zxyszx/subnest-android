@@ -90,6 +90,13 @@ data class SharedAccount(
     val occupiedSeats: Int,
     val nextBillingDate: String,
     val status: String,
+    val verificationLink: String? = null,
+    val verificationMode: String? = null,
+    val monthlyRevenueByCurrency: Map<String, String> = emptyMap(),
+    val outstandingAmountByCurrency: Map<String, String> = emptyMap(),
+    val paymentMethod: String? = null,
+    val cardLast4: String? = null,
+    val hasPassword: Boolean = false,
 ) {
     val available: Int get() = (capacity - occupiedSeats).coerceAtLeast(0)
 }
@@ -106,7 +113,72 @@ data class Seat(
     val expiresAt: String? = null,
     val currency: String? = null,
     val monthlyPrice: String? = null,
+    val contact: String? = null,
+    val contactType: String? = null,
+    val billingMonths: Int? = null,
+    val startDate: String? = null,
+    val notes: String? = null,
+    val currentReceivable: Receivable? = null,
 )
+
+@Serializable
+data class Receivable(val amount: String, val status: String, val periodStart: String, val periodEnd: String)
+
+@Serializable
+data class SeatUpdate(
+    val memberName: String,
+    val contact: String,
+    val contactType: String,
+    val monthlyPrice: String,
+    val billingAmount: String,
+    val currency: String,
+    val billingMonths: Int,
+    val startDate: String,
+    val expiresAt: String,
+    val status: String,
+    val paymentStatus: String,
+    val notes: String,
+) {
+    fun validate() {
+        require(memberName.isNotBlank() && memberName.length <= 120)
+        require(contact.length <= 320 && notes.length <= 5000)
+        require(currency.matches(Regex("[A-Z]{3}")) && billingMonths in 1..120)
+        listOf(billingAmount, monthlyPrice).forEach { amount ->
+            require(amount.matches(Regex("[0-9]+(?:\\.[0-9]{1,6})?")))
+            require(amount.toBigDecimal() <= "1000000000".toBigDecimal())
+        }
+        require(LocalDate.parse(expiresAt) > LocalDate.parse(startDate))
+        require(status in setOf("active", "paused", "archived") && paymentStatus in setOf("pending", "paid"))
+    }
+}
+
+@Serializable
+data class AccountCredentials(val password: String)
+
+data class SeatLink(val id: String, val seatId: String, val url: String, val valid: Boolean)
+
+@Serializable
+data class TotpLink(val id: String, val seatId: String, val path: String, val valid: Boolean)
+
+@Serializable
+data class TotpLinks(val links: List<TotpLink>)
+
+@Serializable
+data class InboxLink(
+    val id: String,
+    val shortUrl: String,
+    val mailboxId: String,
+    val seatId: String? = null,
+    val folderIds: List<String>,
+    val windowMinutes: Int,
+    val status: String,
+    val expiresAt: String? = null,
+)
+
+@Serializable
+data class InboxLinks(val links: List<InboxLink>)
+
+class SharingConfigurationException : IllegalStateException()
 
 @Serializable
 data class AccountDetail(val account: SharedAccount, val seats: List<Seat>)
@@ -144,7 +216,7 @@ fun accountsMatching(rows: List<SharedAccount>, query: String, platform: String?
                 if (query.trim().matches(Regex("[0-9]+"))) {
                     it.accountNumber.toString() == query.trim()
                 } else {
-                    query.isBlank() || listOf(it.name, it.loginAccount, it.accountNumber.toString(), it.subscription.platformName)
+                    query.isBlank() || listOf(it.name, it.subscription.name, it.loginAccount, it.accountNumber.toString(), it.subscription.platformName)
                         .any { value -> value.contains(query.trim(), ignoreCase = true) }
                 }
                 ) &&

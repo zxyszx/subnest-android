@@ -12,6 +12,19 @@ import java.time.LocalDate
 class WorkspaceRulesTest {
     private val today = LocalDate.of(2026, 10, 17)
 
+    @Test
+    fun `seat charges reject unsupported precision negative prices and reversed periods before sending`() {
+        val changes = SeatUpdate("Member", "", "", "15", "45", "CNY", 3, "2026-10-16", "2027-01-16", "active", "paid", "")
+        changes.validate()
+        listOf(
+            changes.copy(billingAmount = "-15"),
+            changes.copy(monthlyPrice = "0.33333333"),
+            changes.copy(billingAmount = "1000000001"),
+            changes.copy(expiresAt = "2026-10-15"),
+            changes.copy(billingMonths = 0),
+        ).forEach { invalid -> assertThrows(IllegalArgumentException::class.java) { invalid.validate() } }
+    }
+
     private fun subscription(id: String, date: String, status: String = "active") = Subscription(
         id = id, name = "Netflix", price = "45", currency = "CNY", billingCycle = "monthly",
         nextBillingDate = date, status = status, autoRenew = false, autoCalculateNextBillingDate = false,

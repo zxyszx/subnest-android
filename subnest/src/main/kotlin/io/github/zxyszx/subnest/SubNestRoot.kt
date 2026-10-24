@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -35,11 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.zxyszx.subnest.data.ListFilter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubNestRoot(model: WorkspaceViewModel, state: WorkspaceState) {
     var tab by rememberSaveable(state.user?.id) { mutableIntStateOf(0) }
+    var subscriptionFilter by rememberSaveable(state.user?.id) { mutableStateOf(ListFilter.ALL) }
+    var sharingFilter by rememberSaveable(state.user?.id) { mutableStateOf(ListFilter.ALL) }
     val snackbar = remember { SnackbarHostState() }
     val resources = LocalResources.current
     val savedScreens = rememberSaveableStateHolder()
@@ -51,14 +56,14 @@ fun SubNestRoot(model: WorkspaceViewModel, state: WorkspaceState) {
         }
     }
     BackHandler(state.user != null && tab != 0 && state.detail == null) { tab = 0 }
-    val labels = listOf(R.string.subscriptions, R.string.sharing, R.string.account)
-    val icons = listOf(Icons.AutoMirrored.Filled.List, Icons.Default.AccountBox, Icons.Default.AccountCircle)
+    val labels = listOf(R.string.dashboard, R.string.subscriptions, R.string.sharing, R.string.account)
+    val icons = listOf(Icons.Default.Home, Icons.AutoMirrored.Filled.List, Icons.Default.AccountBox, Icons.Default.AccountCircle)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (state.user == null) stringResource(R.string.app_name) else stringResource(labels[tab])) },
                 actions = {
-                    if (state.user != null && tab != 2) {
+                    if (state.user != null && tab != 3) {
                         IconButton(onClick = model::refresh, enabled = !state.busy) {
                             Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
                         }
@@ -89,15 +94,33 @@ fun SubNestRoot(model: WorkspaceViewModel, state: WorkspaceState) {
             if (state.user == null) {
                 LoginScreen(state, model::login, model::verify, model::cancelMfa)
             } else {
-                savedScreens.SaveableStateProvider("${state.user.id}:$tab") {
+                savedScreens.SaveableStateProvider(
+                    "${state.user.id}:$tab:${if (tab == 1) {
+                        subscriptionFilter
+                    } else if (tab == 2) {
+                        sharingFilter
+                    } else {
+                        ListFilter.ALL
+                    }}",
+                ) {
                     when (tab) {
-                        0 -> SubscriptionScreen(state.subscriptions, state.busy, model::renew)
-                        1 -> SharingScreen(state.accounts, state.busy, model::openAccount)
+                        0 -> DashboardScreen(state, {
+                            subscriptionFilter = it
+                            tab = 1
+                        }, {
+                            sharingFilter = it
+                            tab = 2
+                        })
+
+                        1 -> SubscriptionScreen(state.subscriptions, state.busy, model::renew, subscriptionFilter)
+
+                        2 -> SharingScreen(state.accounts, state.busy, model::openAccount, sharingFilter)
+
                         else -> AccountScreen(state, model::logout)
                     }
                 }
             }
         }
     }
-    state.detail?.let { SeatSheet(it, model::closeAccount) }
+    state.detail?.let { SeatSheet(it, state.busy, state.detailError, state.links, model::closeAccount, model::saveSeat, model::copyPassword, model::loadLinks, model::generateLink, model::revokeLink) }
 }

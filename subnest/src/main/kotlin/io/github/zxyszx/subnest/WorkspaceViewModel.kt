@@ -8,7 +8,10 @@ import androidx.lifecycle.viewModelScope
 import io.github.zxyszx.subnest.data.AccountDetail
 import io.github.zxyszx.subnest.data.ApiException
 import io.github.zxyszx.subnest.data.LoginResult
+import io.github.zxyszx.subnest.data.SeatLink
+import io.github.zxyszx.subnest.data.SeatUpdate
 import io.github.zxyszx.subnest.data.SharedAccount
+import io.github.zxyszx.subnest.data.SharingConfigurationException
 import io.github.zxyszx.subnest.data.SubNestRepository
 import io.github.zxyszx.subnest.data.Subscription
 import io.github.zxyszx.subnest.data.User
@@ -27,6 +30,8 @@ data class WorkspaceState(
     val subscriptions: List<Subscription> = emptyList(),
     val accounts: List<SharedAccount> = emptyList(),
     val detail: AccountDetail? = null,
+    val detailError: String? = null,
+    val links: List<SeatLink>? = null,
     val busy: Boolean = false,
     val error: String? = null,
     val message: Int? = null,
@@ -94,11 +99,39 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun refresh() = work { loadLists() }
 
     fun openAccount(id: String) = work {
-        mutable.value = mutable.value.copy(detail = requireNotNull(repository).detail(id))
+        mutable.value = mutable.value.copy(detail = requireNotNull(repository).detail(id), links = null, detailError = null)
     }
 
     fun closeAccount() {
-        mutable.value = mutable.value.copy(detail = null)
+        mutable.value = mutable.value.copy(detail = null, links = null, detailError = null)
+    }
+
+    fun loadLinks() = work { mutable.value = mutable.value.copy(links = requireNotNull(repository).links(requireNotNull(mutable.value.detail))) }
+
+    fun generateLink(seatId: String) = work {
+        val detail = requireNotNull(mutable.value.detail)
+        requireNotNull(repository).generateLink(detail, seatId)
+        mutable.value = mutable.value.copy(links = requireNotNull(repository).links(detail))
+    }
+
+    fun revokeLink(linkId: String) = work {
+        val detail = requireNotNull(mutable.value.detail)
+        requireNotNull(repository).revokeLink(detail.account, linkId)
+        mutable.value = mutable.value.copy(links = requireNotNull(repository).links(detail))
+    }
+
+    fun saveSeat(id: String, changes: SeatUpdate, onSaved: () -> Unit) = work {
+        val detail = requireNotNull(repository).updateSeat(id, changes)
+        mutable.value = mutable.value.copy(detail = detail, links = null, message = R.string.seat_saved)
+        withContext(Dispatchers.Main) { onSaved() }
+        loadLists()
+    }
+
+    fun copyPassword() = work {
+        val detail = requireNotNull(mutable.value.detail)
+        val password = requireNotNull(repository).credentials(detail.account.id).password
+        withContext(Dispatchers.Main) { copyWorkspaceText(getApplication(), password, sensitive = true) }
+        mutable.value = mutable.value.copy(message = R.string.copied)
     }
 
     fun cancelMfa() {
@@ -126,7 +159,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun work(restoring: Boolean = false, block: suspend () -> Unit) {
         if (mutable.value.busy) return
-        mutable.value = mutable.value.copy(busy = true, error = null, message = null)
+        mutable.value = mutable.value.copy(busy = true, error = null, detailError = null, message = null)
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { block() }
@@ -140,10 +173,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 val message = when {
                     restoring && error is ApiException && error.status == 401 -> null
                     error is ApiException -> error.message
+                    error is SharingConfigurationException -> getApplication<Application>().getString(R.string.link_configuration_required)
                     error is IllegalArgumentException -> getApplication<Application>().getString(R.string.invalid_input)
                     else -> getApplication<Application>().getString(R.string.network_error)
                 }
-                mutable.value = mutable.value.copy(error = message)
+                mutable.value = mutable.value.copy(error = if (mutable.value.detail == null) message else null, detailError = if (mutable.value.detail != null) message else null)
             } finally {
                 mutable.value = mutable.value.copy(busy = false)
             }
